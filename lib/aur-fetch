@@ -104,7 +104,7 @@ fi | while read -r pkg; do
         git config diff.orderFile "$orderfile"
 
         if (( confirm_seen )); then
-            git update-ref AURUTILS_SEEN HEAD
+            git update-ref AUR_SEEN HEAD
 
             warning 'Marked new repository %s as seen' "$pkg"
             continue # skip diff logic
@@ -113,7 +113,7 @@ fi | while read -r pkg; do
             git update-ref AUR_SEEN "$(git hash-object -t tree /dev/null)"
 
             # This case may be handled differently from an existing repo where
-            # the AURUTILS_SEEN ref does not exist; here, we know that the repo
+            # the AUR_SEEN ref does not exist; here, we know that the repo
             # is at the current HEAD, and a git pull is not required.
             : cloned repository was not inspected
         fi
@@ -126,7 +126,7 @@ fi | while read -r pkg; do
         fi
 
         if (( confirm_seen )); then
-            git update-ref AURUTILS_SEEN HEAD
+            git update-ref AUR_SEEN HEAD
 
             msg2 'Marked %s as seen' "$pkg" >&2
             continue
@@ -147,11 +147,11 @@ fi | while read -r pkg; do
         fi
     fi
 
-    seen=$(git rev-parse --quiet --verify AURUTILS_SEEN)
+    seen=$(git rev-parse --quiet --verify AUR_SEEN)
 
     if [[ -z $seen ]]; then
         #seen=$git_empty_tree
-        warning '%s: AURUTILS_SEEN object not found, assuming empty tree' "$argv0"
+        warning '%s: AUR_SEEN object not found, assuming empty tree' "$argv0"
     fi
 
     # Directory was inspected (--confirm-seen) at a previous time.
