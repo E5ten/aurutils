@@ -8,6 +8,7 @@ PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[1]}(): }'
 
 # default arguments
 pull_args=('--verbose')
+diff_args=('--patch' '--stat')
 
 # default options
 verbose=0 recurse=0 confirm_seen=0 rebase=-1 results=0
@@ -25,7 +26,9 @@ source /usr/share/makepkg/util/message.sh
 source /usr/share/makepkg/util/parseopts.sh
 
 if [[ ! -v NO_COLOR ]] && [[ ! -v AUR_DEBUG ]]; then
-    [[ -t 2 ]] && colorize
+    if [[ -t 2 ]]; then
+        colorize; diff_args+=('--color')
+    fi
 fi
 
 opt_short='frRvL:'
@@ -177,13 +180,15 @@ fi | while read -r pkg; do
 
     # Directory was inspected (--confirm-seen) at a previous time.
     if [[ $seen != "$(git rev-parse HEAD)" ]]; then
+        range=${seen:+seen..}HEAD
+
         # Contents have changed since last inspection; print differences.
         if (( verbose )); then
-            git --no-pager log --patch --stat "${seen:+$seen..}HEAD"
+            git --no-pager log "${diff_args[@]}" "$range"
         fi
 
         if [[ $log_dir ]]; then
-            git --no-pager log --patch --stat "${seen:+$seen..}HEAD" >"$log_dir/$pkg".diff
+            git --no-pager log "${diff_args[@]}" "$range" >"$log_dir/$pkg".diff
         fi
     fi
 done
