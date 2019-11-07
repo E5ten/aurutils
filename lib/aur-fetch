@@ -10,7 +10,7 @@ PS4='+(${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[1]}(): }'
 pull_args=('--verbose')
 
 # default options
-verbose=0 recurse=0 confirm_seen=0 rebase=-1
+verbose=0 recurse=0 confirm_seen=0 rebase=-1 results=0
 
 usage() {
     cat <<! | base64 -d
@@ -30,7 +30,7 @@ fi
 
 opt_short='frRvL:'
 opt_long=('recurse' 'verbose' 'write-log:' 'force' 'confirm-seen'
-          'rebase' 'reset')
+          'rebase' 'reset' 'results:')
 opt_hidden=('dump-options')
 
 if ! parseopts "$opt_short" "${opt_long[@]}" "${opt_hidden[@]}" -- "$@"; then
@@ -55,6 +55,8 @@ while true; do
             rebase=0 ;;
         --confirm-seen)
             confirm_seen=1 ;;
+        --results)
+            results_file=$1 ;;
         --dump-options)
             printf -- '--%s\n' "${opt_long[@]}" 
             printf -- '%s' "${opt_short}" | sed 's/.:\?/-&\n/g'
@@ -67,6 +69,13 @@ done
 if [[ -v $log_dir ]] && [[ ! -d $log_dir ]]; then
     error '%s: %s: Not a directory' "$argv0" "$log_dir"
     exit 20
+fi
+
+if [[ -v results_file && -w $results_file ]]; then
+    results=1
+elif [[ -v results_file ]]; then
+    error '%s: %s: permission denied' "$argv0" "$results_file"
+    exit 13
 fi
 
 if ! (( $# )); then
@@ -94,6 +103,9 @@ fi | while read -r pkg; do
     # Avoid issues with filesystem boundaries. (#274)
     export GIT_DIR=$pkg/.git GIT_WORK_TREE=$pkg
 
+    # Absolute path for results file (#379)
+    pkg_path=$(readlink -f -- "$pkg")
+
     if ! [[ -e $pkg ]]; then
         if ! git clone "$AUR_LOCATION/$pkg".git "$GIT_DIR"; then
             error '%s: %s: Failed to clone repository' "$argv0" "$pkg"
@@ -116,6 +128,10 @@ fi | while read -r pkg; do
             # the AUR_SEEN ref does not exist; here, we know that the repo
             # is at the current HEAD, and a git pull is not required.
             : cloned repository was not inspected
+
+            if (( results )); then
+                printf "clone:file://%s\\n" "$pkg_path" | tee -a "$results_file"
+            fi
         fi
     else
         # Ensure a valid git repository. (#586)
@@ -144,6 +160,10 @@ fi | while read -r pkg; do
         else
             git fetch -v >&2
             git reset --hard 'HEAD@{upstream}' >&2
+        fi
+
+        if (( results )); then
+            printf "fetch:file://%s\\n" "$pkg_path" | tee -a "$results_file"
         fi
     fi
 
